@@ -1,0 +1,195 @@
+Table 1: ROOM
+CREATE TABLE ROOM (
+    room_id       NUMBER(5)      PRIMARY KEY,
+    room_number   VARCHAR2(10)   NOT NULL UNIQUE,
+    floor         NUMBER(2)      NOT NULL,
+    block         VARCHAR2(5)    NOT NULL,
+    room_type     VARCHAR2(20)   NOT NULL CHECK (room_type IN ('Single','Double','Triple','Dormitory')),
+    capacity      NUMBER(2)      NOT NULL,
+    status        VARCHAR2(20)   DEFAULT 'Available'
+                                 CHECK (status IN ('Available','Occupied','Under Maintenance')),
+    monthly_rent  NUMBER(8,2)    NOT NULL,
+    created_at    DATE           DEFAULT SYSDATE
+);
+
+Table 2: STUDENT
+CREATE TABLE STUDENT (
+    student_id    NUMBER(7)      PRIMARY KEY,
+    reg_number    VARCHAR2(20)   NOT NULL UNIQUE,
+    full_name     VARCHAR2(100)  NOT NULL,
+    cnic          VARCHAR2(15)   NOT NULL UNIQUE,
+    gender        VARCHAR2(10)   CHECK (gender IN ('Male','Female','Other')),
+    contact       VARCHAR2(15)   NOT NULL,
+    email         VARCHAR2(100)  NOT NULL UNIQUE,
+    address       VARCHAR2(200),
+    enrollment_date DATE         DEFAULT SYSDATE,
+    room_id       NUMBER(5),
+    CONSTRAINT fk_student_room FOREIGN KEY (room_id) REFERENCES ROOM(room_id)
+);
+
+Table 3: STAFF
+CREATE TABLE STAFF (
+    staff_id      NUMBER(5)      PRIMARY KEY,
+    full_name     VARCHAR2(100)  NOT NULL,
+    cnic          VARCHAR2(15)   NOT NULL UNIQUE,
+    role          VARCHAR2(30)   NOT NULL
+                                 CHECK (role IN ('Warden','Assistant Warden','Guard','Cleaner','Technician','Cook')),
+    contact       VARCHAR2(15)   NOT NULL,
+    shift         VARCHAR2(10)   CHECK (shift IN ('Morning','Evening','Night')),
+    salary        NUMBER(10,2),
+    hire_date     DATE           DEFAULT SYSDATE,
+    is_active     VARCHAR2(3)    DEFAULT 'Yes' CHECK (is_active IN ('Yes','No'))
+);
+
+Table 4: PAYMENT
+CREATE TABLE PAYMENT (
+    payment_id     NUMBER(7)     PRIMARY KEY,
+    student_id     NUMBER(7)     NOT NULL,
+    amount         NUMBER(10,2)  NOT NULL,
+    payment_date   DATE          DEFAULT SYSDATE,
+    due_date       DATE          NOT NULL,
+    payment_method VARCHAR2(20)  CHECK (payment_method IN ('Cash','Bank Transfer','Online','Cheque')),
+    status         VARCHAR2(15)  DEFAULT 'Pending'
+                                 CHECK (status IN ('Paid','Pending','Overdue')),
+    remarks        VARCHAR2(200),
+    CONSTRAINT fk_payment_student FOREIGN KEY (student_id) REFERENCES STUDENT(student_id)
+);
+
+Table 5: MAINTENANCE
+CREATE TABLE MAINTENANCE (
+    request_id    NUMBER(7)      PRIMARY KEY,
+    room_id       NUMBER(5)      NOT NULL,
+    reported_by   NUMBER(7)      NOT NULL,
+    description   VARCHAR2(500)  NOT NULL,
+    priority      VARCHAR2(10)   DEFAULT 'Medium'
+                                 CHECK (priority IN ('Low','Medium','High','Critical')),
+    status        VARCHAR2(20)   DEFAULT 'Pending'
+                                 CHECK (status IN ('Pending','In Progress','Resolved','Cancelled')),
+    reported_date DATE           DEFAULT SYSDATE,
+    resolved_date DATE,
+    assigned_to   NUMBER(5),
+    CONSTRAINT fk_maint_room    FOREIGN KEY (room_id)     REFERENCES ROOM(room_id),
+    CONSTRAINT fk_maint_student FOREIGN KEY (reported_by) REFERENCES STUDENT(student_id),
+    CONSTRAINT fk_maint_staff   FOREIGN KEY (assigned_to) REFERENCES STAFF(staff_id)
+);
+
+Table 6: VISITOR
+CREATE TABLE VISITOR (
+    visitor_id    NUMBER(7)      PRIMARY KEY,
+    student_id    NUMBER(7)      NOT NULL,
+    visitor_name  VARCHAR2(100)  NOT NULL,
+    visitor_cnic  VARCHAR2(15),
+    relation      VARCHAR2(30),
+    purpose       VARCHAR2(200),
+    entry_time    TIMESTAMP      DEFAULT SYSTIMESTAMP,
+    exit_time     TIMESTAMP,
+    approved_by   NUMBER(5),
+    CONSTRAINT fk_visitor_student FOREIGN KEY (student_id)  REFERENCES STUDENT(student_id),
+    CONSTRAINT fk_visitor_staff   FOREIGN KEY (approved_by) REFERENCES STAFF(staff_id)
+);
+
+Table 7: COMPLAINT
+CREATE TABLE COMPLAINT (
+    complaint_id  NUMBER(7)      PRIMARY KEY,
+    student_id    NUMBER(7)      NOT NULL,
+    category      VARCHAR2(50)   NOT NULL
+                                 CHECK (category IN ('Noise','Food','Cleanliness','Behavior','Facilities','Other')),
+    description   VARCHAR2(500)  NOT NULL,
+    status        VARCHAR2(20)   DEFAULT 'Open'
+                                 CHECK (status IN ('Open','Under Review','Resolved','Rejected')),
+    filed_date    DATE           DEFAULT SYSDATE,
+    resolved_date DATE,
+    resolved_by   NUMBER(5),
+    remarks       VARCHAR2(300),
+    CONSTRAINT fk_complaint_student  FOREIGN KEY (student_id)  REFERENCES STUDENT(student_id),
+    CONSTRAINT fk_complaint_staff    FOREIGN KEY (resolved_by) REFERENCES STAFF(staff_id)
+);
+
+Table 8: LAUNDRY
+CREATE TABLE LAUNDRY (
+    laundry_id     NUMBER(7)     PRIMARY KEY,
+    student_id     NUMBER(7)     NOT NULL,
+    submitted_date DATE          DEFAULT SYSDATE,
+    expected_return DATE         NOT NULL,
+    actual_return  DATE,
+    items_count    NUMBER(3)     NOT NULL,
+    weight_kg      NUMBER(5,2),
+    charges        NUMBER(8,2),
+    status         VARCHAR2(20)  DEFAULT 'Submitted'
+                                 CHECK (status IN ('Submitted','In Process','Ready','Delivered')),
+    handled_by     NUMBER(5),
+    CONSTRAINT fk_laundry_student FOREIGN KEY (student_id)  REFERENCES STUDENT(student_id),
+    CONSTRAINT fk_laundry_staff   FOREIGN KEY (handled_by)  REFERENCES STAFF(staff_id)
+);
+
+Table 9: INVENTORY
+CREATE TABLE INVENTORY (
+    item_id       NUMBER(7)      PRIMARY KEY,
+    item_name     VARCHAR2(100)  NOT NULL,
+    category      VARCHAR2(50)   NOT NULL
+                                 CHECK (category IN ('Furniture','Appliance','Bedding','Cleaning','Electronics','Other')),
+    quantity      NUMBER(5)      DEFAULT 1 NOT NULL,
+    room_id       NUMBER(5),
+    condition     VARCHAR2(15)   DEFAULT 'Good'
+                                 CHECK (condition IN ('New','Good','Fair','Damaged','Disposed')),
+    purchase_date DATE,
+    purchase_cost NUMBER(10,2),
+    notes         VARCHAR2(300),
+    CONSTRAINT fk_inventory_room FOREIGN KEY (room_id) REFERENCES ROOM(room_id)
+);
+
+Table 10: ROOM_TRANSFER
+CREATE TABLE ROOM_TRANSFER (
+    transfer_id    NUMBER(7)      PRIMARY KEY,
+    student_id     NUMBER(7)      NOT NULL,
+    from_room_id   NUMBER(5)      NOT NULL,
+    to_room_id     NUMBER(5)      NOT NULL,
+    reason         VARCHAR2(400)  NOT NULL,
+    transfer_type  VARCHAR2(30)   DEFAULT 'Personal'
+                                  CHECK (transfer_type IN ('Medical','Noise Issue','Personal','Maintenance','Upgrade','Downgrade')),
+    status         VARCHAR2(20)   DEFAULT 'Pending'
+                                  CHECK (status IN ('Pending','Approved','Rejected','Completed','Cancelled')),
+    requested_date DATE           DEFAULT SYSDATE,
+    approved_date  DATE,
+    completed_date DATE,
+    approved_by    NUMBER(5),
+    remarks        VARCHAR2(200),
+    CONSTRAINT fk_transfer_student   FOREIGN KEY (student_id)   REFERENCES STUDENT(student_id),
+    CONSTRAINT fk_transfer_from_room FOREIGN KEY (from_room_id) REFERENCES ROOM(room_id),
+    CONSTRAINT fk_transfer_to_room   FOREIGN KEY (to_room_id)   REFERENCES ROOM(room_id),
+    CONSTRAINT fk_transfer_staff     FOREIGN KEY (approved_by)  REFERENCES STAFF(staff_id)
+);
+
+Table 11: MESS_MENU
+CREATE TABLE MESS_MENU (
+    menu_id       NUMBER(7)      PRIMARY KEY,
+    day_of_week   VARCHAR2(10)   NOT NULL
+                                 CHECK (day_of_week IN ('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')),
+    meal_type     VARCHAR2(15)   NOT NULL
+                                 CHECK (meal_type IN ('Breakfast','Lunch','Dinner','Snack')),
+    description   VARCHAR2(500)  NOT NULL,
+    calories      NUMBER(5),
+    price         NUMBER(7,2),
+    is_vegetarian VARCHAR2(3)    DEFAULT 'No' CHECK (is_vegetarian IN ('Yes','No')),
+    week_start    DATE           NOT NULL,
+    prepared_by   NUMBER(5),
+    CONSTRAINT fk_menu_staff FOREIGN KEY (prepared_by) REFERENCES STAFF(staff_id)
+);
+
+Table 12: LOCKER
+CREATE TABLE LOCKER (
+    locker_id       NUMBER(7)    PRIMARY KEY,
+    locker_number   VARCHAR2(10) NOT NULL UNIQUE,
+    block           VARCHAR2(5)  NOT NULL,
+    floor           NUMBER(2)    NOT NULL,
+    student_id      NUMBER(7),
+    assigned_date   DATE,
+    expiry_date     DATE,
+    status          VARCHAR2(15) DEFAULT 'Available'
+                                 CHECK (status IN ('Available','Assigned','Maintenance')),
+    locker_size     VARCHAR2(10) DEFAULT 'Medium'
+                                 CHECK (locker_size IN ('Small','Medium','Large')),
+    monthly_charge  NUMBER(7,2),
+    CONSTRAINT fk_locker_student FOREIGN KEY (student_id) REFERENCES STUDENT(student_id)
+);
+ 
